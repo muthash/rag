@@ -16,8 +16,8 @@ COVERAGE_GREEN = 90.0
 COVERAGE_AMBER = 75.0
 
 # Color coding thresholds - Answer (1-5 scale)
-ANSWER_GREEN = 4.0
-ANSWER_AMBER = 3.0
+ANSWER_GREEN = 4.5
+ANSWER_AMBER = 4.0
 
 
 def get_color(value: float, metric_type: str) -> str:
