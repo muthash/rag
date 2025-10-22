@@ -3,7 +3,7 @@ import pandas as pd
 from collections import defaultdict
 from dotenv import load_dotenv
 
-from eval import evaluate_all_retrieval, evaluate_all_answers
+from evaluation.eval import evaluate_all_retrieval, evaluate_all_answers
 
 load_dotenv(override=True)
 
@@ -123,7 +123,7 @@ def run_retrieval_evaluation(progress=gr.Progress()):
     return final_html, df
 
 
-async def run_answer_evaluation(progress=gr.Progress()):
+def run_answer_evaluation(progress=gr.Progress()):
     """Run answer evaluation and yield updates (async)."""
     total_accuracy = 0.0
     total_completeness = 0.0
@@ -131,7 +131,7 @@ async def run_answer_evaluation(progress=gr.Progress()):
     category_accuracy = defaultdict(list)
     count = 0
 
-    async for test, result, prog_value in evaluate_all_answers():
+    for test, result, prog_value in evaluate_all_answers():
         count += 1
         total_accuracy += result.accuracy
         total_completeness += result.completeness

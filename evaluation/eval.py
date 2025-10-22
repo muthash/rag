@@ -1,18 +1,16 @@
 import sys
 import math
-import asyncio
 from pydantic import BaseModel, Field
-from litellm import acompletion
+from litellm import completion
 from dotenv import load_dotenv
 
-from test import TestQuestion, load_tests
-from answer2 import answer_question, fetch_context
+from evaluation.test import TestQuestion, load_tests
+from implementation.answer import answer_question, fetch_context
 
 load_dotenv(override=True)
 
 MODEL = "gpt-4.1-nano"
 db_name = "vector_db"
-BATCH_SIZE = 1
 
 
 class RetrievalEval(BaseModel):
@@ -114,7 +112,7 @@ def evaluate_retrieval(test: TestQuestion, k: int = 10) -> RetrievalEval:
     )
 
 
-async def evaluate_answer(test: TestQuestion) -> tuple[AnswerEval, str, list]:
+def evaluate_answer(test: TestQuestion) -> tuple[AnswerEval, str, list]:
     """
     Evaluate answer quality using LLM-as-a-judge (async).
 
@@ -125,7 +123,7 @@ async def evaluate_answer(test: TestQuestion) -> tuple[AnswerEval, str, list]:
         Tuple of (AnswerEval object, generated_answer string, retrieved_docs list)
     """
     # Get RAG response using shared answer module
-    generated_answer, retrieved_docs = await answer_question(test.question)
+    generated_answer, retrieved_docs = answer_question(test.question)
 
     # Format context for judge
     context_str = "\n\n".join(
@@ -161,9 +159,7 @@ Provide detailed feedback and scores from 1 (very poor) to 5 (ideal) for each di
     ]
 
     # Call LLM judge with structured outputs (async)
-    judge_response = await acompletion(
-        model=MODEL, messages=judge_messages, response_format=AnswerEval
-    )
+    judge_response = completion(model=MODEL, messages=judge_messages, response_format=AnswerEval)
 
     answer_eval = AnswerEval.model_validate_json(judge_response.choices[0].message.content)
 
@@ -172,7 +168,7 @@ Provide detailed feedback and scores from 1 (very poor) to 5 (ideal) for each di
 
 def evaluate_all_retrieval():
     """Evaluate all retrieval tests."""
-    tests = load_tests("tests.jsonl")
+    tests = load_tests()
     total_tests = len(tests)
     for index, test in enumerate(tests):
         result = evaluate_retrieval(test)
@@ -180,28 +176,17 @@ def evaluate_all_retrieval():
         yield test, result, progress
 
 
-async def evaluate_all_answers():
+def evaluate_all_answers():
     """Evaluate all answers to tests using batched async execution."""
-    tests = load_tests("tests.jsonl")
+    tests = load_tests()
     total_tests = len(tests)
-
-    # Process tests in batches of BATCH_SIZE
-    for batch_start in range(0, total_tests, BATCH_SIZE):
-        batch_end = min(batch_start + BATCH_SIZE, total_tests)
-        batch_tests = tests[batch_start:batch_end]
-
-        # Run batch concurrently
-        tasks = [evaluate_answer(test) for test in batch_tests]
-        batch_results = await asyncio.gather(*tasks)
-
-        # Yield results for this batch
-        for i, (result, _, _) in enumerate(batch_results):
-            test = batch_tests[i]
-            progress = (batch_start + i + 1) / total_tests
-            yield test, result, progress
+    for index, test in enumerate(tests):
+        result = evaluate_answer(test)[0]
+        progress = (index + 1) / total_tests
+        yield test, result, progress
 
 
-async def run_cli_evaluation(test_number: int):
+def run_cli_evaluation(test_number: int):
     """Run evaluation for a specific test (async helper for CLI)."""
     # Load tests
     tests = load_tests("tests.jsonl")
@@ -239,7 +224,7 @@ async def run_cli_evaluation(test_number: int):
     print("Answer Evaluation")
     print(f"{'=' * 80}")
 
-    answer_result, generated_answer, retrieved_docs = await evaluate_answer(test)
+    answer_result, generated_answer, retrieved_docs = evaluate_answer(test)
 
     print(f"\nGenerated Answer:\n{generated_answer}")
     print(f"\nFeedback:\n{answer_result.feedback}")
@@ -262,7 +247,7 @@ def main():
         print("Error: test_row_number must be an integer")
         sys.exit(1)
 
-    asyncio.run(run_cli_evaluation(test_number))
+    run_cli_evaluation(test_number)
 
 
 if __name__ == "__main__":

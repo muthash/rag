@@ -14,9 +14,10 @@ def format_context(context):
     return result
 
 
-async def chat(history):
+def chat(history):
     last_message = history[-1]["content"]
-    answer, context = await answer_question(last_message)
+    prior = history[:-1]
+    answer, context = answer_question(last_message, prior)
     history.append({"role": "assistant", "content": answer})
     return history, format_context(context)
 

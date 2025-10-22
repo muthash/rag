@@ -2,7 +2,7 @@ from pathlib import Path
 from langchain_openai import ChatOpenAI
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, convert_to_messages
 from langchain_core.documents import Document
 
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ MODEL = "gpt-4.1-nano"
 DB_NAME = str(Path(__file__).parent.parent / "vector_db")
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-RETRIEVAL_K = 5
+RETRIEVAL_K = 3
 
 SYSTEM_PROMPT = """
 You are a knowledgeable, friendly assistant representing the company Insurellm.
@@ -38,12 +38,15 @@ def fetch_context(question: str) -> list[Document]:
     return retriever.invoke(question, k=RETRIEVAL_K)
 
 
-async def answer_question(question: str) -> tuple[str, list]:
+def answer_question(question: str, history: list[dict] = []) -> tuple[str, list[Document]]:
+    """
+    Answer the given question with RAG; return the answer and the context documents.
+    """
     docs = fetch_context(question)
     context = "\n\n".join(doc.page_content for doc in docs)
     system_prompt = SYSTEM_PROMPT.format(context=context)
-
-    response = await llm.ainvoke(
-        [SystemMessage(content=system_prompt), HumanMessage(content=question)]
-    )
+    messages = [SystemMessage(content=system_prompt)]
+    messages.extend(convert_to_messages(history))
+    messages.append(HumanMessage(content=question))
+    response = llm.invoke(messages)
     return response.content, docs
