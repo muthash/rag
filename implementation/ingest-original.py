@@ -19,7 +19,6 @@ load_dotenv(override=True)
 
 
 def fetch_documents():
-    """Load ALL documents from ALL folders - we'll limit at chunk level, not document level."""
     folders = glob.glob(str(Path(KNOWLEDGE_BASE) / "*"))
     documents = []
     for folder in folders:
@@ -35,24 +34,9 @@ def fetch_documents():
 
 
 def create_chunks(documents):
-    """
-    Sample evenly across all documents for balanced representation
-    """
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200,
-        separators=["\n\n", "\n", ". ", "! ", "? ", "; ", ", ", " ", ""],
-    )
-    all_chunks = text_splitter.split_documents(documents)
-    
-    total_chunks = len(all_chunks)
-    target_chunks = int(total_chunks * 0.6)
-    
-    step = total_chunks / target_chunks if target_chunks > 0 else 1
-    selected_chunks = [all_chunks[int(i * step)] for i in range(target_chunks)]
-    
-    print(f"Created {total_chunks} total chunks, keeping {len(selected_chunks)} (60%) for balanced coverage")
-    return selected_chunks
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = text_splitter.split_documents(documents)
+    return chunks
 
 
 def create_embeddings(chunks):
